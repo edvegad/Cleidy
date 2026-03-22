@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Solar - 19 Flores Amarillas</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #010005; }
+        canvas { display: block; position: absolute; top: 0; left: 0; z-index: 1; }
+        
+        /* NUEVO: El video ahora es un elemento HTML de fondo, no un objeto 3D. 
+           Esto garantiza que NUNCA gire y siempre esté fijo y centrado. */
+        #bgVideo {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            height: 100vh; /* Ocupa el alto de la pantalla */
+            opacity: 0; /* Inicia invisible */
+            z-index: 0; /* Detrás del canvas 3D */
+            transition: opacity 2s ease-in-out; /* Fundido suave por CSS */
+            object-fit: cover;
+            pointer-events: none; /* Que no bloquee el click del ratón */
+        }
+
+        #startButton {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            padding: 15px 30px; font-size: 20px; background-color: #ffcc00; color: #000;
+            border: none; border-radius: 30px; cursor: pointer; z-index: 100;
+            font-weight: bold; font-family: sans-serif; box-shadow: 0 4px 15px rgba(255, 204, 0, 0.5);
+        }
+    </style>
+</head>
+<body>
+
+<button id="startButton">Entrar al Universo</button>
+
+<!-- Tu video local. Como ahora es HTML, se verá SIEMPRE de frente y quieto -->
+<video id="bgVideo" src="Recursos/video1.mp4" playsinline muted></video>
+
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+</script>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // 1. ESCENA Y CÁMARA (Más lejos para que quepan 19 anillos)
+    const scene = new THREE.Scene();
+    // Quitamos la niebla para que el video de HTML se vea perfecto detrás
+    
+    const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 15, 45); // Z=45 para abarcar las 19 fotos
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.maxDistance = 80; // Para que no te alejes demasiado y te salgas del universo
+
+    // 2. LUCES TEMÁTICAS
+    const hemiLight = new THREE.HemisphereLight(0x4a00e0, 0x000022, 1); 
+    scene.add(hemiLight);
+    const cyanLight = new THREE.PointLight(0x00f3ff, 150, 200);
+    cyanLight.position.set(15, 10, 10);
+    scene.add(cyanLight);
+    const magentaLight = new THREE.PointLight(0xffcc00, 150, 200); 
+    magentaLight.position.set(-15, -10, -10);
+    scene.add(magentaLight);
+
+    // 3. FONDO DE ESTRELLAS 3D (Opcional, flotarán por delante del video HTML)
+    const backgroundStarsGroup = new THREE.Group();
+    scene.add(backgroundStarsGroup);
+    function createBackgroundStars(count, size, color) {
+        const bgStarsGeo = new THREE.BufferGeometry();
+        const bgStarsPos = new Float32Array(count * 3);
+        for (let i = 0; i < count * 3; i += 3) {
+            const r = 80 + Math.random() * 100; 
+            const theta = 2 * Math.PI * Math.random(); 
+            const phi = Math.acos(2 * Math.random() - 1); 
+            bgStarsPos[i] = r * Math.sin(phi) * Math.cos(theta);
+            bgStarsPos[i+1] = r * Math.sin(phi) * Math.sin(theta);
+            bgStarsPos[i+2] = r * Math.cos(phi);
+        }
+        bgStarsGeo.setAttribute('position', new THREE.BufferAttribute(bgStarsPos, 3));
+        const bgStarsMat = new THREE.PointsMaterial({
+            color: color, size: size, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending 
+        });
+        return new THREE.Points(bgStarsGeo, bgStarsMat);
+    }
+    backgroundStarsGroup.add(createBackgroundStars(2000, 0.4, 0xffffff)); 
+    backgroundStarsGroup.add(createBackgroundStars(800, 0.5, 0xffcc00)); 
+
+    // 4. PLANETA CENTRAL
+    const textureLoader = new THREE.TextureLoader();
+    const planetTexture = textureLoader.load('https://unpkg.com/three@0.160.0/examples/textures/planets/mars_1k_color.jpg');
+    const planetGeometry = new THREE.SphereGeometry(3.5, 64, 64); // Planeta un pelín más grande
+    const planetMaterial = new THREE.MeshStandardMaterial({ map: planetTexture, roughness: 0.8 });
+    const planet = new THREE.Mesh(planetGeometry, planetMaterial);
+    const systemTilt = 0.3; 
+    planet.rotation.z = systemTilt;
+    scene.add(planet);
+
+    // 5. TUS 19 FOTOS
+    const imagesUrls = [
+        'Recursos/foto1.jpg', 'Recursos/foto2.jpg', 'Recursos/foto3.jpg',
+        'Recursos/foto4.jpg', 'Recursos/foto5.jpg', 'Recursos/foto6.jpg',
+        'Recursos/foto7.jpg', 'Recursos/foto8.jpg', 'Recursos/foto9.jpg',
+        'Recursos/foto10.jpg', 'Recursos/foto11.jpg', 'Recursos/foto12.jpg',
+        'Recursos/foto13.jpg', 'Recursos/foto14.jpg', 'Recursos/foto15.jpg',
+        'Recursos/foto16.jpg', 'Recursos/foto17.jpg', 'Recursos/foto18.jpg',
+        'Recursos/foto19.jpg'
+    ];
+
+    const ringGroup = new THREE.Group();
+    scene.add(ringGroup);
+    ringGroup.rotation.z = systemTilt; 
+    const imageObjects = [];
+    
+    // Distancias ajustadas para 19 anillos
+    const innerRadius = 5.0; // Empiezan un poco más alejadas del planeta
+    const orbitGap = 1.1;    // Espacio entre cada anillo
+
+    for (let i = 0; i < imagesUrls.length; i++) {
+        const currentRadius = innerRadius + (i * orbitGap);
+        const starsCount = 200 + (i * 30); 
+        const starGeo = new THREE.BufferGeometry();
+        const starPos = new Float32Array(starsCount * 3);
+        
+        for(let j = 0; j < starsCount * 3; j += 3) {
+            const angle = Math.random() * Math.PI * 2;
+            const r = currentRadius + (Math.random() - 0.5) * 0.2; 
+            starPos[j] = Math.cos(angle) * r;
+            starPos[j+1] = (Math.random() - 0.5) * 0.1; 
+            starPos[j+2] = Math.sin(angle) * r;
+        }
+        
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        const colorPista = i % 2 === 0 ? 0xffcc00 : 0xffffff; 
+        const starMat = new THREE.PointsMaterial({ color: colorPista, size: 0.05, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending });
+        const starRing = new THREE.Points(starGeo, starMat);
+        ringGroup.add(starRing); 
+
+        const pivot = new THREE.Group(); 
+        ringGroup.add(pivot); 
+        const anchor = new THREE.Object3D();
+        anchor.position.set(currentRadius, 0, 0); 
+        pivot.add(anchor);
+        pivot.rotation.y = Math.random() * Math.PI * 2; 
+
+        // Creamos la foto
+        const texture = textureLoader.load(imagesUrls[i]);
+        const planeGeo = new THREE.PlaneGeometry(1.5, 1.5);
+        const planeMat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
+        const imageMesh = new THREE.Mesh(planeGeo, planeMat);
+        scene.add(imageMesh);
+
+        imageObjects.push({ mesh: imageMesh, pivot: pivot, anchor: anchor, speed: 0.015 / currentRadius });
+    }
+
+    // 6. LÓGICA DEL VIDEO (Ahora controlado por CSS y HTML)
+    const videoElement = document.getElementById('bgVideo');
+
+    document.getElementById('startButton').addEventListener('click', function() {
+        this.style.display = 'none';
+
+        // El video aparecerá a los 3 SEGUNDOS
+        setTimeout(() => {
+            // Le quitamos el silencio si quieres que tenga audio (descomenta la linea de abajo)
+            videoElement.muted = false; 
+            
+            let playPromise = videoElement.play();
+            if (playPromise !== undefined) {
+                playPromise.then(_ => {
+                    // Aparece suavemente hasta un 40% de opacidad usando CSS
+                    videoElement.style.opacity = '0.4'; 
+                })
+                .catch(error => {
+                    alert("⚠️ Error: El navegador bloqueó el video o la ruta no es correcta. Usa Live Server.");
+                    console.error(error);
+                });
+            }
+        }, 3000); 
+    });
+
+    // Cuando el video termina, desaparece
+    videoElement.addEventListener('ended', () => {
+        videoElement.style.opacity = '0';
+    });
+
+
+    // 7. ANIMACIÓN INFINITA
+    function animate() {
+        requestAnimationFrame(animate);
+
+        planet.rotation.y += 0.002;
+        ringGroup.rotation.y += 0.0005; 
+        backgroundStarsGroup.rotation.y += 0.0001;
+
+        imageObjects.forEach((imgObj) => {
+            imgObj.pivot.rotation.y += imgObj.speed; 
+            const targetPos = new THREE.Vector3();
+            imgObj.anchor.getWorldPosition(targetPos);
+            imgObj.mesh.position.copy(targetPos);
+            imgObj.mesh.lookAt(camera.position); // Siempre miran a la cámara
+        });
+
+        controls.update(); 
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    // Adaptación a pantalla
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+</script>
+</body>
+</html>
